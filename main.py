@@ -32,12 +32,19 @@ def generate_emails(full_name, org_name):
             emails.add(f"{local_part}@{org}{domain}")
     return list(emails)
 
-def send_email(subject, body, from_email, password, to_emails):
+def send_email(subject, body, from_email, password, to_emails, attachment=None):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = from_email
     msg["To"] = ", ".join(to_emails)
     msg.set_content(body)
+
+    if attachment:
+        filename = attachment.filename
+        file_data = attachment.read()
+        file_type = attachment.mimetype
+        maintype, subtype = file_type.split('/', 1)
+        msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=filename)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(from_email, password)
@@ -52,9 +59,10 @@ def index():
         body = request.form["body"]
         from_email = request.form["from_email"]
         password = request.form["password"]
+        attachment = request.files.get("attachment")
 
         to_emails = generate_emails(full_name, org_name)
-        send_email(subject, body, from_email, password, to_emails)
+        send_email(subject, body, from_email, password, to_emails, attachment)
         return f"<h3>Email sent to: {', '.join(to_emails)}</h3>"
 
     return render_template("form.html")
@@ -63,39 +71,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
-# templates/form.html
-# Save this under a folder named 'templates' in your project
-
-# Contents of form.html:
-#
-# <!DOCTYPE html>
-# <html>
-# <head>
-#     <title>Smart Email Sender</title>
-#     <style>
-#         body { font-family: Arial; margin: 40px; }
-#         label { display: block; margin-top: 10px; }
-#         input, textarea { width: 100%; padding: 8px; margin-top: 4px; }
-#         button { margin-top: 15px; padding: 10px 20px; }
-#     </style>
-# </head>
-# <body>
-#     <h2>Send Email by Name & Organization</h2>
-#     <form method="POST">
-#         <label>Full Name:</label>
-#         <input type="text" name="full_name" required />
-#         <label>Organization Name:</label>
-#         <input type="text" name="org_name" required />
-#         <label>Email Subject:</label>
-#         <input type="text" name="subject" required />
-#         <label>Email Body:</label>
-#         <textarea name="body" rows="6" required></textarea>
-#         <label>Your Email (Gmail):</label>
-#         <input type="email" name="from_email" required />
-#         <label>Your Email Password (App Password):</label>
-#         <input type="password" name="password" required />
-#         <button type="submit">Send Email</button>
-#     </form>
-# </body>
-# </html>
