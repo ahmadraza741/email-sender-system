@@ -1,101 +1,62 @@
-# email_sender_system/main.py
-
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 import smtplib
-from email.message import EmailMessage
+import os
 
 app = Flask(__name__)
 
-COMMON_DOMAINS = [".com", ".co.in", ".net", ".org", ".in"]
-EMAIL_PATTERNS = [
-    "{first}.{last}",
-    "{first[0]}.{last}",
-    "{first}.{last[0]}",
-    "{first}{last}",
-    "{first}",
-    "{first[0]}{last}",
-    "{first[0]}.{last[0]}",
-    "{first}_{last}",
-    "{last}.{first}"
+# Email credentials (set these in environment variables or replace directly)
+FROM_EMAIL = os.getenv("EMAIL") or "your_email@gmail.com"
+EMAIL_PASSWORD = os.getenv("PASSWORD") or "your_password"
+
+# Common domain patterns
+COMMON_DOMAINS = [
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
+    "company.com", "organization.org"
 ]
 
-def generate_emails(full_name, org_name):
-    parts = full_name.strip().lower().split()
-    if len(parts) != 2:
-        return []
-    first, last = parts
-    org = org_name.strip().lower().replace(" ", "")
-    emails = set()
-    for pattern in EMAIL_PATTERNS:
-        local_part = pattern.format(first=first, last=last, first0=first[0], last0=last[0])
-        for domain in COMMON_DOMAINS:
-            emails.add(f"{local_part}@{org}{domain}")
-    return list(emails)
+def generate_emails(name, org):
+    name = name.lower().replace(" ", "")
+    org = org.lower().replace(" ", "")
+    local_parts = [name, f"{name}.{org}", f"{org}.{name}", f"{name}_{org}"]
+    domains = [org + ".com", org + ".org"] + COMMON_DOMAINS
+    return [f"{lp}@{domain}" for lp in local_parts for domain in domains]
 
-def send_email(subject, body, from_email, password, to_emails):
-    msg = EmailMessage()
-    msg["Subject"] = subject
+def send_email(subject, body, from_email, password, to_emails, attachment=None):
+    msg = MIMEMultipart()
     msg["From"] = from_email
     msg["To"] = ", ".join(to_emails)
-    msg.set_content(body)
+    msg["Subject"] = subject
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+    msg.attach(MIMEText(body, "plain"))
+
+    # ✅ Add attachment if it exists
+    if attachment:
+        part = MIMEApplication(attachment.read(), Name=attachment.filename)
+        part['Content-Disposition'] = f'attachment; filename="{attachment.filename}"'
+        msg.attach(part)
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.starttls()
         smtp.login(from_email, password)
         smtp.send_message(msg)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        full_name = request.form["full_name"]
-        org_name = request.form["org_name"]
-        subject = request.form["subject"]
-        body = request.form["body"]
-        from_email = request.form["from_email"]
-        password = request.form["password"]
+        name = request.form["name"]
+        org = request.form["organization"]
+        attachment = request.files.get("attachment")
 
-        to_emails = generate_emails(full_name, org_name)
-        send_email(subject, body, from_email, password, to_emails)
-        return f"<h3>Email sent to: {', '.join(to_emails)}</h3>"
+        subject = f"Hello from {name}"
+        body = f"Hi, I'm {name} from {org}. Let's connect!"
+
+        recipients = generate_emails(name, org)
+
+        send_email(subject, body, FROM_EMAIL, EMAIL_PASSWORD, recipients, attachment)
+
+        return f"✅ Email sent successfully to:<br><br>" + "<br>".join(recipients)
 
     return render_template("form.html")
-
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-
-# templates/form.html
-# Save this under a folder named 'templates' in your project
-
-# Contents of form.html:
-#
-# <!DOCTYPE html>
-# <html>
-# <head>
-#     <title>Smart Email Sender</title>
-#     <style>
-#         body { font-family: Arial; margin: 40px; }
-#         label { display: block; margin-top: 10px; }
-#         input, textarea { width: 100%; padding: 8px; margin-top: 4px; }
-#         button { margin-top: 15px; padding: 10px 20px; }
-#     </style>
-# </head>
-# <body>
-#     <h2>Send Email by Name & Organization</h2>
-#     <form method="POST">
-#         <label>Full Name:</label>
-#         <input type="text" name="full_name" required />
-#         <label>Organization Name:</label>
-#         <input type="text" name="org_name" required />
-#         <label>Email Subject:</label>
-#         <input type="text" name="subject" required />
-#         <label>Email Body:</label>
-#         <textarea name="body" rows="6" required></textarea>
-#         <label>Your Email (Gmail):</label>
-#         <input type="email" name="from_email" required />
-#         <label>Your Email Password (App Password):</label>
-#         <input type="password" name="password" required />
-#         <button type="submit">Send Email</button>
-#     </form>
-# </body>
-# </html>
