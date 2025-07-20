@@ -1,21 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Email Sender with Attachment</title>
+    <title>Smart Email Sender</title>
 </head>
 <body>
     <h2>Send Email</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <label>Name:</label><br>
-        <input type="text" name="name" required><br><br>
-
-        <label>Organization:</label><br>
-        <input type="text" name="organization" required><br><br>
-
-        <label>Attachment (optional):</label><br>
-        <input type="file" name="attachment"><br><br>
-
-        <input type="submit" value="Send Email">
+    <form method="POST">
+        <label>Full Name:</label><input type="text" name="full_name"><br>
+        <label>Organization Name:</label><input type="text" name="org_name"><br>
+        <label>Subject:</label><input type="text" name="subject"><br>
+        <label>Body:</label><textarea name="body"></textarea><br>
+        <label>Your Gmail:</label><input type="email" name="from_email"><br>
+        <label>Your App Password:</label><input type="password" name="password"><br>
+        <button type="submit">Send Email</button>
     </form>
 </body>
 </html>
