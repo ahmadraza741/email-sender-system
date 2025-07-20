@@ -36,7 +36,8 @@ def send_email(subject, body, from_email, password, to_emails, attachment=None):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = from_email
-    msg["To"] = ", ".join(to_emails)
+    msg["To"] = from_email
+    msg["Bcc"] = ", ".join(to_emails)
     msg.set_content(body)
 
     if attachment:
